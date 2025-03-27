@@ -5,7 +5,7 @@ setup(
     version="0.1.0",
     packages=find_packages(),
     install_requires=[
-        'anndata>=0.9.2'
+        'anndata>=0.9.2',
         'scanpy>=1.9.6',
         'torch>=1.11.0',
         'torchvision>=0.12.0',
