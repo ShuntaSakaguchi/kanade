@@ -13,12 +13,6 @@ setup(
         'scikit-learn>=1.3.2',
         'numpy>=1.24.4',
         'tqdm>=4.66.1'
-    ],
-    extras_require={
-        "gpu": [
-            "torch>=1.11.0+cu113",
-            'torchvision>=0.12.0+cu113',
-            'torchaudio>=0.11.0+cu113'
-        ],
+    ]
     }
 )
