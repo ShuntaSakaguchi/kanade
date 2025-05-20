@@ -128,13 +128,14 @@ class Decoder(nn.Module):
 
 class Decoder_ZINB(Decoder):
 
-    def __init__(self, latent_dim, output_dim, filter_sizes):
+    def __init__(self, latent_dim, output_dim, filter_sizes, scale_max=1e6, scale_min=1e2):
         self.latent_dim = latent_dim
         super(Decoder_ZINB, self).__init__(latent_dim-1, output_dim, filter_sizes)
         # self.scale_decoder = nn.Linear(latent_dim, 1)
         self.theta_decoder = nn.Linear(latent_dim-1, 1)
         self._eps = 1e-8
-
+        self.scale_logmax = np.log(scale_max)
+        self.scale_logmin = np.log(scale_min)
 
     def forward(self, z):
 
@@ -149,7 +150,8 @@ class Decoder_ZINB(Decoder):
 
         pi = torch.sigmoid(_pi) #確率なので、0-1に制限
 
-        scale = z_scale.exp()
+        z_scale_clamp = torch.clamp(z_scale, min=self.scale_logmin, max=self.scale_logmax)
+        scale = z_scale_clamp.exp()
 
         _theta = self.theta_decoder(z_main)
         theta_pos = F.softplus(_theta) + self._eps #正の値に制限
