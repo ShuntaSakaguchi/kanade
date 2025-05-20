@@ -4,7 +4,6 @@ import pickle
 
 from sklearn.model_selection import train_test_split
 
-import scanpy as sc
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -216,7 +215,7 @@ class Kanade():
 
         return loss_fn
 
-    def training(self, model_file=None,log_file_prefix=None, optimizer = None, logging=True, n_epochs=50):
+    def training(self, model_file=None,log_file_prefix=None, optimizer = None, logging=True, n_epochs=50, learning_rate=0.001):
 
         if model_file is None and log_file_prefix is None:
 
@@ -235,9 +234,12 @@ class Kanade():
             else:
                 self.log_file = file_prefix
 
+        else:
+            self.log_file = log_file_prefix
+
 
         if optimizer is None:
-            optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+            optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
 
         self.model.train()
 

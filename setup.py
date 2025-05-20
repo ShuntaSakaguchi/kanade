@@ -6,7 +6,6 @@ setup(
     packages=find_packages(),
     install_requires=[
         'anndata>=0.9.2',
-        'scanpy>=1.9.6',
         'torch>=1.11.0',
         'torchvision>=0.12.0',
         'torchaudio>=0.11.0',
