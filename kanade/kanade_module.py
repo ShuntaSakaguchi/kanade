@@ -128,7 +128,7 @@ class Decoder(nn.Module):
 
 class Decoder_ZINB(Decoder):
 
-    def __init__(self, latent_dim, output_dim, filter_sizes, scale_max=1e6, scale_min=1e2):
+    def __init__(self, latent_dim, output_dim, filter_sizes, scale_max=1e6, scale_min=0):
         self.latent_dim = latent_dim
         super(Decoder_ZINB, self).__init__(latent_dim-1, output_dim, filter_sizes)
         # self.scale_decoder = nn.Linear(latent_dim, 1)
