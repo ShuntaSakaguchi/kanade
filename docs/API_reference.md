@@ -29,7 +29,7 @@ do_parallel=False,
 ### Parameters
 
 - **adata** : `anndata.AnnData`  
-  Dataset to correct. adata.X should have a raw counts matrix, and adata.obs must contain metadata to train predictors.
+  Dataset to correct. adata.X should have a raw counts matrix with `scipy.sparse.csr_matrix` format, and adata.obs must contain metadata to train predictors.
 
 - **supervised_columns** : list of `str`  
   List of metadata labels (other than batch) to be learned by predictors. Corresponding latent variables are created to preserve signals across conditions.
@@ -68,7 +68,7 @@ do_parallel=False,
 - **split_seed** : (optional) `int`, default = `0`  
   Random seed to split the dataset into training and test sets. Ignored if **do_train_test_split** = `False`.
 
-- **learning_seed** : (optional) 'int', default = `0`  
+- **learning_seed** : (optional) `int`, default = `0`  
   Random seed for the training process.
 
 - **mini_batch_size** : (optional) `int`, default = `128`  
@@ -82,7 +82,8 @@ do_parallel=False,
 
 - **do_parallel** : (optional) `bool`, default = `True`  
   If True, enables model parallelization via torch.nn.DataParallel. Requires multiple GPUs.
-
+  <br>
+  <br>
 ### Methods
 
 ```python
@@ -95,7 +96,84 @@ kanade.Kanade.training(
   n_epochs=50,
   learning_rate=0.001)
 ```
+#### Description
+
+The method to train the model.
 
 #### Parameters
 
-- **model_file** : `str`, default = `None`  
+- **model_file** : (optional) `str`, default = `None`  
+  File name to save the weights. Extension of file is `.pth`. Setting of the Kanade object is saved to the file named "**model_file** + '_setting.pkl'". If `None`, "Kanade\_{date}" is set.
+
+- **log_file_prefix** : (optional) `str`, default = `None`
+  Prefix of the name of log files. The log of loss for the training data is wrote to the file named  "**log_file_prefix**+'_train.log'" and for the test data to "**log_file_prefix**+'_test.log'". If `None`, "Kanade\_{date}" is set. It is ignored if **logging** == `False`.
+
+- **optimizer** : (optional) `torch.optim.Optimizer`, default = `None`  
+  Optimizer object for the training. If `None`, `torch.optim.Adam` is used.
+
+- **logging** : (optional) `bool`, default = `True`  
+  If `True`, values of loss functions are recorded in the training.
+
+- **n_epochs** : (optional) `int`, default = `50`  
+  The number of training epochs.
+
+- **learning_rate** : (optional) `float`, default = `0.001`  
+  Learning rate for `torch.optim.Adam`. Ignored if **optimizer** is set.
+
+#### Returns
+
+- **self** : `kanade.Kanade`  
+  Trained model.
+
+<br>
+<br>
+
+```python
+kanade.Kanade.projection(
+  self,
+  X,
+  mini_batch_size=1024,
+  temporary_device='cpu',
+  return_mu_log_var=False)
+```
+#### Description
+
+The method to project data into the latent space.
+
+#### Parameters
+
+- **X** : `torch.Tensor` or `scipy.sparse.csr_matrix`  
+  Count matrix. size : `n_obs` x `n_features`
+
+- **mini_batch_size** : (optional) `int`, default = `1024`  
+  Mini-batch size for projection process.
+
+- **temporary_device** : (optional) `torch.device`, default = `cpu`  
+  Device in which projected data is put.
+
+- **return_mu_log_var** : (optional) `bool`, default = `False`  
+  If `True`, parameters (mean and log-variance) of posterior distributions of latent variables are returned with latent variables.
+
+#### Returns
+
+- **z** : `torch.Tensor`  
+  Calculated latent variables. Shape: n_obs × n_latent_variables. The variables are arranged in the following order:  (1) a single scale-factor variable,  (2) latent variables associated with supervised_columns and (3) batch-related latent variables. The numbers of variables in (2) and (3) are determined by the values specified in the constructor.
+
+- **mu** : `torch.Tensor`  
+  Means of posterior distributions of latent variables. Shape is the same as **z**. It is returned only if **return_mu_log_var** is `True`.
+
+- **log_var** : `torch.Tensor`  
+  log_variances of posterior distributions of latent variables. Shape is the same as **z**. It is returned only if **return_mu_log_var** is `True`.
+
+  <br>
+  <br>
+
+  ```python
+  kanade.Kanade.decode(
+    self,
+    z,
+    mini_batch_size=1024,
+    temporary_device='cpu'
+    )
+  ```
+  #### Description
