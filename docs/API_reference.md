@@ -142,7 +142,7 @@ The method to project data into the latent space.
 
 #### Parameters
 
-- **X** : `torch.Tensor` or `scipy.sparse.csr_matrix`  
+- **X** : `scipy.sparse.csr_matrix`  
   Count matrix. size : `n_obs` x `n_features`
 
 - **mini_batch_size** : (optional) `int`, default = `1024`  
@@ -163,7 +163,7 @@ The method to project data into the latent space.
   Means of posterior distributions of latent variables. Shape is the same as **z**. It is returned only if **return_mu_log_var** is `True`.
 
 - **log_var** : `torch.Tensor`  
-  log_variances of posterior distributions of latent variables. Shape is the same as **z**. It is returned only if **return_mu_log_var** is `True`.
+  log-variances of posterior distributions of latent variables. Shape is the same as **z**. It is returned only if **return_mu_log_var** is `True`.
 
   <br>
   <br>
@@ -176,4 +176,88 @@ The method to project data into the latent space.
     temporary_device='cpu'
     )
   ```
-  #### Description
+#### Description
+
+Decode latent variables and calculate parameters of ZINB.
+
+#### Parameters
+
+- **z** : `torch.Tensor`
+  Latent variables to use to calculate parameters of ZINB.
+
+- **mini_batch_size** : (optional) `int`, default = `1024`
+  Mini-batch size for decoding process.
+
+- **temporary_device** : (optional) `torch.device`, default = `cpu`  
+  Device in which parameters are put.
+
+#### Returns
+
+- **mu_nb** : `torch.Tensor`  
+  Scaled mean parameters of ZINB. size : `n_obs` x `n_vars`
+
+- **theta** : `torch.Tensor`  
+  xxx parameters of ZINB. Shared across all features. size : `n_obs` x `1`.
+
+- **pi** : `torch.Tensor`  
+  Dropout rate parameters of ZINB. size : `n_obs` x `n_vars`
+
+- **scale**: `torch.Tensor`  
+  Scale factors of each cells. size : `n_obs` x `1`
+
+  <br>
+  <br>
+
+```python
+kanade.Kanade.resample(
+  self,
+  mu_nb,
+  theta,
+  pi,
+  scale,
+  mini_batch_size=128,
+  temporary_device='cpu')
+```
+
+#### Description
+
+Regenerate the count matrix from a ZINB distribution using the given parameters.
+
+#### Parameters
+
+- **mu_nb** : `torch.Tensor`  
+  Scaled mean parameters of ZINB. size : `n_obs` x `n_vars`
+
+- **theta** : `torch.Tensor`  
+  xxx parameters of ZINB. Shared across all features. size : `n_obs` x `1`.
+
+- **pi** : `torch.Tensor`  
+  Dropout rate parameters of ZINB. size : `n_obs` x `n_vars`
+
+- **scale**: `torch.Tensor`  
+  Scale factors of each cells. size : `n_obs` x `1`
+
+- **mini_batch_size** : (optional) `int`, default = `128`
+  Mini-batch size for resampling process.
+
+- **temporary_device** : (optional) `torch.device`, default = `cpu`  
+  Device in which reconstructed data is put.
+
+#### Returns
+
+- **counts** : `torch.Tensor`  
+  Reconstructed counts. size : `n_obs` x `n_vars`
+
+  <br>
+  <br>
+
+```python
+kanade.Kanade.remove_batch(
+  self,
+  z,
+  additional_removal=None,  
+  replace_values=0,
+  mini_batch_size=None)
+```
+
+#### Description
