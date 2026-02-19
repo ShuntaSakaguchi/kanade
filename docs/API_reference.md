@@ -25,6 +25,8 @@ do_parallel=False,
 *args,
 **kwargs)
 ```
+### Description
+Kanade object class
 
 ### Parameters
 
@@ -237,7 +239,7 @@ Regenerate the count matrix from a ZINB distribution using the given parameters.
 - **scale**: `torch.Tensor`  
   Scale factors of each cells. size : `n_obs` x `1`
 
-- **mini_batch_size** : (optional) `int`, default = `128`
+- **mini_batch_size** : (optional) `int`, default = `128`  
   Mini-batch size for resampling process.
 
 - **temporary_device** : (optional) `torch.device`, default = `cpu`  
@@ -256,8 +258,62 @@ kanade.Kanade.remove_batch(
   self,
   z,
   additional_removal=None,  
-  replace_values=0,
-  mini_batch_size=None)
+  replace_values=0)
 ```
 
 #### Description
+Correct latent variables.
+
+#### Parameters
+
+- **z** : `torch.Tensor`  
+  Calculated latent variables. Shape: n_obs × n_latent_variables. The variables must be arranged in the following order:  (1) a single scale-factor variable,  (2) latent variables associated with supervised_columns and (3) batch-related latent variables. The numbers of variables in (2) and (3) are determined by the values specified in the constructor.
+
+- **additional_removal** : (optional) list of `str`  
+  Metadata label names corresponding to latent variables to be corrected in addition to batch. Must be selected from the labels specified in **supervised_columns** parameter of the constructor. If `None`, only the batch-related latent variables are corrected.
+
+- **replace_values** : (optional) `numeric`, `str`, or list of them  
+  Specifies the value used to replace latent variables during correction. If a `numeric` value is given, latent variables are replaced with that value. If `'mean'` is given, they are replaced with the mean value; if `'median'`, with the median value. A list of such values can also be provided. In this case, the first element corresponds to the batch latent variables, and the subsequent elements correspond to the labels specified in **additional_removal**, in the same order. When a list is given, its length must be equal to len(**additional_removal**) + 1.
+
+#### Returns
+
+- **z_corrected** : `torch.Tensor`  
+  Corrected latent variables.
+
+  <br>
+  <br>
+
+```python
+kanade.Kanade.save(
+  self):
+```
+
+#### Description
+Save trained Kanade model. File name is set in the `training` method.
+
+<br>
+<br>
+
+## load_kanade
+
+```python
+kanade.load_kanade(
+  model_file,
+  setting_file=None,
+  device=None):
+```
+
+### Description
+Function to load trained Kanade object from files.
+
+
+### Parameters
+
+- **model_file** : `str`
+  File name prefix in which data is saved.  Weights of models are loaded from **model_file** + `'.pth'`. Other object setting is load from **model_file** + `'_setting.pkl'` if **setting_file** parameter is None.
+
+- **setting_file** : (optional, Not recommended) `str`  
+  File name of object setting other than weights.  
+
+- **device** : (optional, Not recommended) `torch.device`
+  Device to put weights.
