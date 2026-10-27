@@ -14,7 +14,7 @@ from . import kanade_config #ここでimportすると、外部から操作困難
 
 class Kanade():
 
-    def __init__(self, adata, supervised_columns, batch_column, dim_supervised_target, num_batch, supervised_dim, predictor_type = None, unsupervised_dim=0, batch_dim=10, filter_sizes=None, do_train_test_split=True, test_ratio=0.1, split_seed=0, learning_seed=0, loss_fn_weights = None, mini_batch_size=128, device=None, kwargs_vae = None, kwargs_loss_fn=None, do_parallel=False, *args, **kwargs):
+    def __init__(self, adata, supervised_columns, batch_column, dim_supervised_target, num_batch, supervised_dim, predictor_type = None, unsupervised_dim=0, batch_dim=10, filter_sizes=None, do_train_test_split=True, test_ratio=0.1, split_seed=0, learning_seed=0, loss_fn_weights = None, mini_batch_size=128, device=None, kwargs_vae = None, kwargs_loss_fn=None, do_parallel=False, legacy=False, *args, **kwargs):
 
         self.input_dim = adata.shape[1]
         self.supervised_dim = supervised_dim
@@ -46,6 +46,7 @@ class Kanade():
 
         self.dim_dict['batch_effect'] = slice(idx, idx+batch_dim, 1)
 
+        self.legacy=legacy #See comment in Predictor class
 
         if predictor_type is None:
             self.predictor_type = ['c'] * len(self.supervised_columns)
@@ -113,7 +114,7 @@ class Kanade():
 
         self.generate_kanade_loader(adata, supervised_columns, unsupervised_dim, batch_column, self.predictor_type, filter_sizes, mini_batch_size, do_train_test_split, test_ratio, split_seed)
 
-        self.model = self.generate_vae(adata.shape[1], supervised_dim, dim_supervised_target, unsupervised_dim, batch_dim, num_batch, self.predictor_type, filter_sizes, kwargs_vae, do_parallel)
+        self.model = self.generate_vae(adata.shape[1], supervised_dim, dim_supervised_target, unsupervised_dim, batch_dim, num_batch, self.predictor_type, filter_sizes, legacy, kwargs_vae, do_parallel)
 
         self.loss_fn = self.generate_loss_function(supervised_dim, unsupervised_dim, batch_dim, self.predictor_type, kwargs_loss_fn)
 
@@ -162,7 +163,7 @@ class Kanade():
                 )
 
 
-    def generate_vae(self, input_dim, supervised_dim, dim_supervised_target, unsupervised_dim, batch_dim, num_batch, predicor_type, filter_sizes, kwargs_vae, do_parallel=True):
+    def generate_vae(self, input_dim, supervised_dim, dim_supervised_target, unsupervised_dim, batch_dim, num_batch, predicor_type, filter_sizes,legacy, kwargs_vae, do_parallel=True):
 
         if kwargs_vae is None:
             kwargs_vae = {}
@@ -176,6 +177,7 @@ class Kanade():
             num_batch = num_batch,
             predictor_type = predicor_type,
             filter_sizes = filter_sizes,
+            legacy=legacy,
             **kwargs_vae
             ).to(kanade_config.device)
 
@@ -431,6 +433,8 @@ class Kanade():
 
         return_text_device = f'device: {self.device}'
 
+        return_text_legacy = f'legacy: {self.legacy}'
+
         if self.log_file is None:
             log_file = None
         else:
@@ -449,6 +453,7 @@ class Kanade():
             return_text_train_test_split,
             return_text_other_training,
             return_text_device,
+            return_text_legacy,
             return_text_files,
             '>']
         )
@@ -478,6 +483,10 @@ def load_kanade(model_file, setting_file=None, device=None):
     knd = Kanade.__new__(Kanade)  # __init__ を呼ばずにインスタンスを作成
     knd.__dict__.update(save_dict)
 
+    knd.legacy = getattr(knd, "legacy", True)
+    #互換性。旧バージョンはlagacy属性がなく、legacy手法
+    #読み込んでlegacy属性がなければTrueとする
+
     knd.model = knd.generate_vae(knd.input_dim,
         knd.supervised_dim,
          knd.dim_supervised_target,
@@ -486,6 +495,7 @@ def load_kanade(model_file, setting_file=None, device=None):
          knd.num_batch,
          knd.predictor_type,
          knd.filter_sizes,
+         knd.legacy,
          knd.kwargs_vae,
          knd.do_parallel)
 

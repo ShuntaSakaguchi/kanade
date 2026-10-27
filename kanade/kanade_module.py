@@ -162,10 +162,12 @@ class Decoder_ZINB(Decoder):
 
 class Predictor(nn.Module):
 
-    def __init__(self, latent_dim, output_dim, predictor_type = 'classifier'):
+    def __init__(self, latent_dim, output_dim, predictor_type = 'classifier', legacy=False):
 
         super(Predictor, self).__init__()
         self.fc = nn.Linear(latent_dim, output_dim)
+
+        self.legacy = legacy
 
         if predictor_type.upper() == 'REGRESSOR' or predictor_type.upper() == 'R':
             self.classifier = False
@@ -178,13 +180,16 @@ class Predictor(nn.Module):
 
     def forward(self, z):
         z = self.fc(z)
-        if self.classifier: z = F.softmax(z, dim=1)
+        #Previously, if it's classifier z was converted by Softmax.
+        #But because input of F.cross_entropy is logit, we skip the softmax function.
+        #Legacy method, which use softmax function, can be used by choosing 'legacy == True'.
+        if self.legacy and self.classifier: z = F.softmax(z, dim=1)
         return z
 
 
 class VAE_kanade(nn.Module):
 
-    def __init__(self, input_dim, supervised_dim, unsupervised_dim, batch_dim, filter_sizes, dim_supervised_target, num_batch, predictor_type = 'classifier'):
+    def __init__(self, input_dim, supervised_dim, unsupervised_dim, batch_dim, filter_sizes, dim_supervised_target, num_batch, predictor_type = 'classifier', scale_max=1e6, legacy=True):
 
         super(VAE_kanade, self).__init__()
 
@@ -269,16 +274,17 @@ class VAE_kanade(nn.Module):
         total_dim = 1 + sum(supervised_dim) + unsupervised_dim + batch_dim
 
         self.encoder = Encoder(input_dim, total_dim, filter_sizes)
-        self.decoder = Decoder_ZINB(total_dim, input_dim * 2, filter_sizes)
+        self.decoder = Decoder_ZINB(total_dim, input_dim * 2, filter_sizes, scale_max=scale_max)
 
         self.supervised_predictors = []
+        self.legacy = legacy # See comment in Predictor class
         for i,(d,n,t) in enumerate(zip(supervised_dim, dim_supervised_target, predictor_type)):
-            p = Predictor(d, n, t)
+            p = Predictor(d, n, t, legacy=legacy)
             self.supervised_predictors.append(p)
             setattr(self,'predictor_{}'.format(i),p)
 
 
-        self.batch_predictor = Predictor(batch_dim, num_batch)
+        self.batch_predictor = Predictor(batch_dim, num_batch, legacy=legacy)
 
     def forward(self, x):
 
