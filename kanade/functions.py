@@ -64,9 +64,12 @@ def hsic(X, Y, sigma=1.0):
 
     return val
 
-def convert_category(adata,col_name):
+def convert_category(adata,col_name,y_map_dict):
     _y1 = np.array(adata.obs[col_name])
-    d = {x: i for i, x in enumerate(set(_y1))}
+    if y_map_dict is None:
+        d = {x: i for i, x in enumerate(set(_y1))}
+    else:
+        d = y_map_dict[col_name]
     y1 = [d[x] for x in _y1]
 
     return d, torch.tensor(y1, dtype=torch.long)

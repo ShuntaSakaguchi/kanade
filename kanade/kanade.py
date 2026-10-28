@@ -148,6 +148,7 @@ class Kanade():
                 predictor_type = predictor_type,
                 batch_size = mini_batch_size,
                 shuffle=True,
+                y_map_dict = self.train_loader.y_map_dict,
                 seed=None
                 )
 

@@ -660,12 +660,12 @@ class DataLoader_kanade(DataLoader):
                 y_tensor_list.append(y_tensor_)
 
             else:
-                y_map_, y_tensor_ = convert_category(adata,l)
+                y_map_, y_tensor_ = convert_category(adata,l,y_map_dict)
                 self.y_map_dict[l] = y_map_
                 y_tensor_list.append(y_tensor_)
 
-        y_map_, y_tensor_ = convert_category(adata,batch_column)
-        self.y_map_dict['batch'] = y_map_
+        y_map_, y_tensor_ = convert_category(adata,batch_column,y_map_dict)
+        self.y_map_dict[batch_column] = y_map_
         y_tensor_list.append(y_tensor_)
 
         dataset_list = [X_tensor] + y_tensor_list
