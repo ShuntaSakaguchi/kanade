@@ -630,7 +630,7 @@ class Trainer_kanade():
 
 class DataLoader_kanade(DataLoader):
 
-    def __init__(self, adata, supervised_columns, batch_column, predictor_type='classifier', batch_size=128, shuffle=True, seed=None, *args, **kwargs):
+    def __init__(self, adata, supervised_columns, batch_column, predictor_type='classifier', batch_size=128, shuffle=True, seed=None, y_map_dict=None, *args, **kwargs):
 
         if not isinstance(adata, AnnData):
             raise ValueError('"adata" must be AnnData object')
