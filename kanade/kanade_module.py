@@ -327,159 +327,279 @@ class VAE_kanade(nn.Module):
 
     #     return self
 
+class NBReconstructionLoss(nn.Module):
 
+    def __init__(self, weight=1.0):
+        super().__init__()
+        self.weight = weight
+
+    def forward(self, input, mu_nb, theta):
+        dist = NegativeBinomial(mu=mu_nb, theta=theta)
+        return self.weight * (-dist.log_prob(input).sum())
+
+
+class ZINBReconstructionLoss(nn.Module):
+
+    def __init__(self, weight=1.0):
+        super().__init__()
+        self.weight = weight
+
+    def forward(self, input, mu_nb, theta, pi):
+        dist = ZINB(mu=mu_nb, theta=theta, pi=pi)
+        return self.weight * (-dist.log_prob(input).sum())
+
+
+class KLDivergenceLoss(nn.Module):
+
+    def __init__(self, weight=1.0):
+        super().__init__()
+        self.weight = weight
+
+    def forward(self, mu, log_var):
+        loss = -0.5 * torch.sum(
+            1 + log_var - mu.pow(2) - log_var.exp()
+        )
+        return self.weight * loss
+
+
+class PredictorLoss(nn.Module):
+
+    def __init__(
+        self,
+        predictor_loss_weight=10.0,
+        batch_loss_weight=10.0,
+        predictor_type='classifier',
+        include_batch=False,
+    ):
+        super().__init__()
+
+        self.include_batch = include_batch
+        self.batch_loss_weight = batch_loss_weight
+
+        # Predictor loss weights
+        if isinstance(predictor_loss_weight, (int, float)):
+            self.predictor_loss_weight = [predictor_loss_weight]
+
+        elif isinstance(predictor_loss_weight, list):
+            if not all(isinstance(w, (int, float))
+                       for w in predictor_loss_weight):
+                raise ValueError(
+                    'predictor_loss_weight must be a number '
+                    'or a list of numbers'
+                )
+            self.predictor_loss_weight = predictor_loss_weight
+
+        else:
+            raise ValueError(
+                'predictor_loss_weight must be a number '
+                'or a list of numbers'
+            )
+
+        # Predictor loss functions
+        if isinstance(predictor_type, str):
+            predictor_type = [predictor_type]
+
+        elif not isinstance(predictor_type, list):
+            raise ValueError(
+                'predictor_type must be a string or a list'
+            )
+
+        self.predictor_loss_func = []
+
+        for t in predictor_type:
+            if t.upper() in ['CLASSIFIER', 'C']:
+                self.predictor_loss_func.append(F.cross_entropy)
+
+            elif t.upper() in ['REGRESSOR', 'R']:
+                self.predictor_loss_func.append(F.mse_loss)
+
+            else:
+                raise ValueError(
+                    'Choose predictor_type from '
+                    '"classifier" or "regressor".'
+                )
+
+    def forward(
+        self,
+        supervised_pred,
+        true_labels,
+        batch_size,
+        batch_pred=None,
+        true_batch=None,
+    ):
+
+        # Supervised predictor loss
+        supervised_loss = 0
+
+        if len(self.predictor_loss_func) == 1:
+            loss_funcs = self.predictor_loss_func * len(supervised_pred)
+        else:
+            loss_funcs = self.predictor_loss_func
+
+        if len(self.predictor_loss_weight) == 1:
+            loss_weights = self.predictor_loss_weight * len(supervised_pred)
+        else:
+            loss_weights = self.predictor_loss_weight
+
+        for pred, label, func, weight in zip(
+            supervised_pred, true_labels, loss_funcs, loss_weights
+        ):
+            supervised_loss += weight * func(pred, label)
+
+        supervised_loss = supervised_loss * batch_size
+
+        # Batch predictor loss
+        if self.include_batch:
+            batch_loss = F.cross_entropy(batch_pred, true_batch)
+            batch_loss = self.batch_loss_weight * batch_loss * batch_size
+
+            return supervised_loss, batch_loss
+
+        return supervised_loss
+
+
+class IndependenceLoss(nn.Module):
+
+    def __init__(
+        self,
+        independence_pattern=None,
+        weight=0,
+        criteria='Pearson',
+        sigma=1.0,
+    ):
+        super().__init__()
+
+        self.independence_pattern = independence_pattern
+        self.weight = weight
+        self.criteria = criteria
+        self.sigma = sigma
+
+    def forward(self, mu):
+
+        # No calculation needed when weight is zero
+        if self.weight == 0:
+            return mu.new_zeros(())
+
+        loss = 0
+        mu_independence = mu.split(
+            self.independence_pattern, dim=1
+        )
+
+        for mu_comb in itertools.combinations(mu_independence, 2):
+
+            if self.criteria.upper() == 'PEARSON':
+                mu_tmp = torch.cat(mu_comb, dim=1)
+                corr = torch.corrcoef(torch.t(mu_tmp)).pow(2)
+                corr = corr[
+                    :mu_comb[0].shape[1],
+                    mu_comb[0].shape[1]:
+                ]
+                loss += corr.sum()
+
+            elif self.criteria.upper() == 'HSIC':
+                loss += hsic(mu_comb[0], mu_comb[1])
+
+            else:
+                raise ValueError(
+                    'Choose independence_criteria from Pearson or HSIC.'
+                )
+
+        return self.weight * loss
 
 
 class VAELoss_kanade(nn.Module):
 
-    def __init__(self, independence_pattern = None, recon_loss_weight=1.0, kl_divergence_weight=1.0, predictor_loss_weight=10.0, batch_loss_weight = 10.0,independence_loss_weight=0, independence_criteria = 'Pearson', sigma = 1.0, predictor_type = 'classifier'):
+    def __init__(
+        self,
+        independence_pattern=None,
+        recon_loss_weight=1.0,
+        kl_divergence_weight=1.0,
+        predictor_loss_weight=10.0,
+        batch_loss_weight=10.0,
+        independence_loss_weight=0,
+        independence_criteria='Pearson',
+        sigma=1.0,
+        predictor_type='classifier',
+    ):
+        super().__init__()
 
-        super(VAELoss_kanade, self).__init__()
-
+        # Keep original attributes
         self.recon_loss_weight = recon_loss_weight
         self.kl_divergence_weight = kl_divergence_weight
-        # self.predictor_loss_weight = predictor_loss_weight
-
-        if isinstance(predictor_loss_weight, (int, float)):
-
-            self.predictor_loss_weight = [predictor_loss_weight]
-
-        elif isinstance(predictor_loss_weight, list):
-
-            for w in predictor_loss_weight:
-                if not isinstance(w, (int, float)):
-                    raise ValueError('predictor_loss_weight must be a number or a list of numbers')
-
-                self.predictor_loss_weight = predictor_loss_weight
-
-        else:
-            raise ValueError('predictor_loss_weight must be a number or a list of numbers')
-
         self.batch_loss_weight = batch_loss_weight
-
-
         self.independence_loss_weight = independence_loss_weight
-
         self.independence_pattern = independence_pattern
-
-        # if independence_criteria.upper() == 'HSIC':
-        #     self.independence_criteria_func = hsic(X[:,0].reshape(-1,1), X[:,1].reshape(-1,1), sigma = sigma)
-        # elif independence_criteria.upper() == 'PEARSON':
-        #     self.independence_criteria_func = lambda X: torch.corrcoef(torch.t(X))[0,1].pow(2)
-        # else:
-        #     raise ValueError('select the "independence_criteria" from Pearson or HSIC')
-
         self.independence_criteria = independence_criteria
 
-        if isinstance(predictor_type, str):
-            if predictor_type.upper() in ['CLASSIFIER','C']:
-                self.predictor_loss_func = [F.cross_entropy]
+        # Individual loss modules
+        self.reconstruction = ZINBReconstructionLoss(
+            weight=recon_loss_weight
+        )
 
-            elif predictor_type.upper() in ['REGRESSOR','R']:
-                self.predictor_loss_func = [F.mse_loss]
+        self.kl = KLDivergenceLoss(
+            weight=kl_divergence_weight
+        )
 
-            else:
-                raise ValueError('Choose predictor_type from "classifier" or "regressor".')
+        self.predictor = PredictorLoss(
+            predictor_loss_weight=predictor_loss_weight,
+            batch_loss_weight=batch_loss_weight,
+            predictor_type=predictor_type,
+            include_batch=True,
+        )
 
-        elif isinstance(predictor_type, list):
+        self.independence = IndependenceLoss(
+            independence_pattern=independence_pattern,
+            weight=independence_loss_weight,
+            criteria=independence_criteria,
+            sigma=sigma,
+        )
 
-            self.predictor_loss_func = []
-            for t in predictor_type:
-                if t.upper() in ['CLASSIFIER','C']:
-                    self.predictor_loss_func.append(F.cross_entropy)
+        # Keep original predictor attributes
+        self.predictor_loss_weight = self.predictor.predictor_loss_weight
+        self.predictor_loss_func = self.predictor.predictor_loss_func
 
-                elif t.upper() in ['REGRESSOR',"R"]:
-                  self.predictor_loss_func.append(F.mse_loss)
+    def forward(
+        self,
+        input,
+        mu_nb,
+        theta,
+        pi,
+        mu,
+        log_var,
+        supervised_pred,
+        batch_pred,
+        true_labels,
+        true_batch,
+    ):
 
-                else:
-                    raise ValueError('Choose predictor_type from "classifier" or "regressor".')
-        else:
-            raise ValueError('Choose predictor_type must be "classifier","regresser" or list of them')
+        self.recon_loss = self.reconstruction(
+            input, mu_nb, theta, pi
+        )
 
-    def forward(self, input, mu_nb, theta, pi, mu, log_var, supervised_pred, batch_pred, true_labels, true_batch):
+        self.kl_divergence = self.kl(
+            mu, log_var
+        )
 
-        #initialize total loss
-        total_loss = 0
+        (
+            self.supervised_predictor_loss,
+            self.batch_predictor_loss,
+        ) = self.predictor(
+            supervised_pred,
+            true_labels,
+            batch_size=input.shape[0],
+            batch_pred=batch_pred,
+            true_batch=true_batch,
+        )
 
-        #reconstrution loss
-        dist = ZINB(mu = mu_nb, theta = theta, pi = pi)
-        self.recon_loss = -dist.log_prob(input).sum()
-        self.recon_loss = self.recon_loss_weight * self.recon_loss
+        self.independence_loss = self.independence(mu)
 
-        total_loss += self.recon_loss
-
-
-
-        # KL divergence loss
-        self.kl_divergence = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
-
-        self.kl_divergence = self.kl_divergence_weight * self.kl_divergence
-
-        total_loss += self.kl_divergence
-
-
-
-        # classifier loss
-        self.supervised_predictor_loss = 0
-
-        #check predictor loss function
-        if len(self.predictor_loss_func) == 1:
-            predictor_loss_func = self.predictor_loss_func * len(supervised_pred)
-        else:
-            predictor_loss_func = self.predictor_loss_func
-
-        #check predictor loss weight
-        if len(self.predictor_loss_weight) == 1:
-            predictor_loss_weight = self.predictor_loss_weight * len(supervised_pred)
-        else:
-            predictor_loss_weight = self.predictor_loss_weight
-
-
-        #calculate classifier loss
-
-        for pred, l, f, w in zip(supervised_pred, true_labels, predictor_loss_func, predictor_loss_weight):
-            self.supervised_predictor_loss += w * f(pred, l)
-
-        self.supervised_predictor_loss = self.supervised_predictor_loss * input.shape[0]
-        total_loss += self.supervised_predictor_loss
-
-
-
-        #batch predicor loss
-        self.batch_predictor_loss = F.cross_entropy(batch_pred, true_batch)
-        self.batch_predictor_loss = self.batch_loss_weight * self.batch_predictor_loss * input.shape[0]
-
-        total_loss += self.batch_predictor_loss
-
-
-
-        # independence loss
-        self.independence_loss = 0
-
-        mu_independence = mu.split(self.independence_pattern, dim=1)
-
-        for mu_comb in itertools.combinations(mu_independence,2):
-
-            if self.independence_criteria.upper() == 'PEARSON':
-
-                mu_tmp = torch.cat(mu_comb, dim = 1)
-                corr = torch.corrcoef(torch.t(mu_tmp)).pow(2)
-                corr = corr[:mu_comb[0].shape[1],mu_comb[0].shape[1]:]
-                self.independence_loss += corr.sum()
-
-            elif self.independence_criteria.upper() == 'HSIC':
-
-                self.independence_loss += hsic(mu_comb[0], mu_comb[1])
-
-            else:
-                raise ValueError('Choose independence_criteria from Pearson or HSIC.')
-
-        self.independence_loss = self.independence_loss_weight * self.independence_loss
-
-
-        total_loss += self.independence_loss
-
-
+        total_loss = (
+            self.recon_loss
+            + self.kl_divergence
+            + self.supervised_predictor_loss
+            + self.batch_predictor_loss
+            + self.independence_loss
+        )
 
         return total_loss
 
