@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="kanade",
-    version="0.1.0",
+    version="2.0.0-dev3",
     packages=find_packages(),
     install_requires=[
         'anndata>=0.9.2',
