@@ -776,7 +776,7 @@ class DataLoader_kanade(DataLoader):
         for l,t in zip(supervised_columns, predictor_type):
             if t.upper() in ['REGRESSOR','R']:
                 y_ = adata.obs[l].astype(np.float32)
-                y_tensor_ = torch.tensor(y_, dtype=torch.float32).reshape(-1,1)
+                y_tensor_ = torch.tensor(y_.to_numpy(), dtype=torch.float32).reshape(-1,1)
                 y_tensor_list.append(y_tensor_)
 
             else:
