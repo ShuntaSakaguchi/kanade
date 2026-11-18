@@ -239,7 +239,7 @@ class VAE_kanade(nn.Module):
         #check dim_supervised_target
         if isinstance(dim_supervised_target, int):
 
-            dim_supervised_target = [dim_supervised_target] * len(dim_supervised_target)
+            dim_supervised_target = [dim_supervised_target] * len(self.supervised_dim)
 
 
         elif isinstance(dim_supervised_target, list):
