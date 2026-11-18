@@ -1,6 +1,7 @@
 import itertools
 
 import numpy as np
+from scipy.sparse import issparse
 
 import torch
 import torch.nn as nn
@@ -768,7 +769,7 @@ class DataLoader_kanade(DataLoader):
             else:
                raise ValueError('Choose predictor_type from "classifier" or "regressor".')
 
-        X = np.array(adata.X.todense())
+        X = adata.X.toarray() if issparse(adata.X) else np.asarray(adata.X)
         X_tensor = torch.tensor(X, dtype=torch.float32)
 
         y_tensor_list = []

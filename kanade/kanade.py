@@ -2,6 +2,7 @@ import numpy as np
 import datetime
 import pickle
 
+from scipy.sparse import issparse
 from sklearn.model_selection import train_test_split
 
 import torch
@@ -263,7 +264,7 @@ class Kanade():
 
     def projection(self, X, mini_batch_size=1024, temporary_device='cpu', return_mu_log_var=False):
 
-        X = np.array(X.todense())
+        X = X.toarray() if issparse(X) else np.asarray(X)
 
         X_tensor = torch.tensor(X, dtype=torch.float32)
         dataset = TensorDataset(X_tensor)
