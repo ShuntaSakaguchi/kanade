@@ -640,8 +640,9 @@ class Trainer_kanade():
         with open(logfile_name_train, "w") as f:
             pass
 
-        with open(logfile_name_test, "w") as f:
-            pass
+        if test_loader is not None:
+            with open(logfile_name_test, "w") as f:
+                pass
 
         for epoch in tqdm(range(1, self.n_epochs + 1)):
 
