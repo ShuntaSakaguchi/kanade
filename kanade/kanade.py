@@ -220,7 +220,7 @@ class Kanade():
 
     def training(self, model_file=None,log_file_prefix=None, optimizer = None, logging=True, n_epochs=50, learning_rate=0.001):
 
-        if model_file is None and log_file_prefix is None:
+        if model_file is None:
 
             file_prefix = self.file_prefix
 
