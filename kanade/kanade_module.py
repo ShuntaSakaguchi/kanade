@@ -627,9 +627,9 @@ class Trainer_kanade():
 
 
         if not seed is None:
-            np.random.seed(seed_internal)
-            torch.manual_seed(seed_internal)
-            torch.cuda.manual_seed_all(seed_internal)
+            np.random.seed(seed)
+            torch.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
 
 
         logfile_name_train = self.logfile_name_prefix + '_train.log'
