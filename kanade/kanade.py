@@ -21,6 +21,8 @@ class Kanade():
         self.supervised_dim = supervised_dim
         self.unsupervised_dim = unsupervised_dim
 
+        if isinstance(supervised_columns, str):
+            supervised_columns = [supervised_columns]
         self.supervised_columns = supervised_columns
         self.batch_column = batch_column
 
