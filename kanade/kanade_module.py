@@ -364,6 +364,7 @@ class KLDivergenceLoss(nn.Module):
 
 
 class PredictorLoss(nn.Module):
+    """Configure one supervised predictor per weight."""
 
     def __init__(
         self,
@@ -388,7 +389,7 @@ class PredictorLoss(nn.Module):
                     'predictor_loss_weight must be a number '
                     'or a list of numbers'
                 )
-            self.predictor_loss_weight = predictor_loss_weight
+            self.predictor_loss_weight = predictor_loss_weight.copy()
 
         else:
             raise ValueError(
@@ -398,11 +399,17 @@ class PredictorLoss(nn.Module):
 
         # Predictor loss functions
         if isinstance(predictor_type, str):
-            predictor_type = [predictor_type]
+            predictor_type = [predictor_type] * len(self.predictor_loss_weight)
 
         elif not isinstance(predictor_type, list):
             raise ValueError(
                 'predictor_type must be a string or a list'
+            )
+
+        if len(predictor_type) != len(self.predictor_loss_weight):
+            raise ValueError(
+                'predictor_type must contain one entry '
+                'per predictor_loss_weight.'
             )
 
         self.predictor_loss_func = []
@@ -429,21 +436,22 @@ class PredictorLoss(nn.Module):
         true_batch=None,
     ):
 
+        # Check runtime inputs against the predictors configured by the weights.
+        if (
+            len(supervised_pred) != len(self.predictor_loss_weight)
+            or len(true_labels) != len(self.predictor_loss_weight)
+        ):
+            raise ValueError(
+                'supervised_pred and true_labels must each contain '
+                'one entry per predictor_loss_weight.'
+            )
+
         # Supervised predictor loss
         supervised_loss = 0
 
-        if len(self.predictor_loss_func) == 1:
-            loss_funcs = self.predictor_loss_func * len(supervised_pred)
-        else:
-            loss_funcs = self.predictor_loss_func
-
-        if len(self.predictor_loss_weight) == 1:
-            loss_weights = self.predictor_loss_weight * len(supervised_pred)
-        else:
-            loss_weights = self.predictor_loss_weight
-
         for pred, label, func, weight in zip(
-            supervised_pred, true_labels, loss_funcs, loss_weights
+            supervised_pred, true_labels,
+            self.predictor_loss_func, self.predictor_loss_weight
         ):
             supervised_loss += weight * func(pred, label)
 
@@ -540,6 +548,16 @@ class VAELoss_kanade(nn.Module):
         self.kl = KLDivergenceLoss(
             weight=kl_divergence_weight
         )
+
+        # Expand shared weights before configuring PredictorLoss.
+        if isinstance(predictor_type, list):
+            if isinstance(predictor_loss_weight, (int, float)):
+                predictor_loss_weight = [predictor_loss_weight] * len(predictor_type)
+            elif (
+                isinstance(predictor_loss_weight, list)
+                and len(predictor_loss_weight) == 1
+            ):
+                predictor_loss_weight = predictor_loss_weight * len(predictor_type)
 
         self.predictor = PredictorLoss(
             predictor_loss_weight=predictor_loss_weight,

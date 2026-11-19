@@ -493,6 +493,25 @@ def load_kanade(model_file, setting_file=None, device=None):
     if isinstance(knd.dim_supervised_target, int):
         knd.dim_supervised_target = [knd.dim_supervised_target] * len(knd.supervised_dim)
 
+    # Older saved losses keep shared weights/functions as single-entry lists.
+    if hasattr(knd.loss_fn, 'predictor'):
+        predictor_loss = knd.loss_fn.predictor
+        num_predictors = len(knd.supervised_dim)
+        if len(predictor_loss.predictor_loss_weight) == 1:
+            predictor_loss.predictor_loss_weight = predictor_loss.predictor_loss_weight * num_predictors
+        if len(predictor_loss.predictor_loss_func) == 1:
+            predictor_loss.predictor_loss_func = predictor_loss.predictor_loss_func * num_predictors
+        if (
+            len(predictor_loss.predictor_loss_weight) != num_predictors
+            or len(predictor_loss.predictor_loss_func) != num_predictors
+        ):
+            raise ValueError(
+                'Saved predictor loss weights and functions must match '
+                'the number of supervised predictors.'
+            )
+        knd.loss_fn.predictor_loss_weight = predictor_loss.predictor_loss_weight
+        knd.loss_fn.predictor_loss_func = predictor_loss.predictor_loss_func
+
     knd.legacy = getattr(knd, "legacy", True)
     #互換性。旧バージョンはlagacy属性がなく、legacy手法
     #読み込んでlegacy属性がなければTrueとする
