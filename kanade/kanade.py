@@ -24,11 +24,14 @@ class Kanade():
         self.supervised_columns = supervised_columns
         self.batch_column = batch_column
 
-        self.dim_supervised_target = dim_supervised_target
         self.num_batch = num_batch
 
         if isinstance(supervised_dim, int): supervised_dim = [supervised_dim] * len(supervised_columns)
         self.supervised_dim = supervised_dim
+
+        if isinstance(dim_supervised_target, int):
+            dim_supervised_target = [dim_supervised_target] * len(self.supervised_dim)
+        self.dim_supervised_target = dim_supervised_target
 
         self.batch_dim = batch_dim
 
