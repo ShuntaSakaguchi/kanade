@@ -490,6 +490,9 @@ def load_kanade(model_file, setting_file=None, device=None):
     knd = Kanade.__new__(Kanade)  # __init__ を呼ばずにインスタンスを作成
     knd.__dict__.update(save_dict)
 
+    if isinstance(knd.dim_supervised_target, int):
+        knd.dim_supervised_target = [knd.dim_supervised_target] * len(knd.supervised_dim)
+
     knd.legacy = getattr(knd, "legacy", True)
     #互換性。旧バージョンはlagacy属性がなく、legacy手法
     #読み込んでlegacy属性がなければTrueとする
