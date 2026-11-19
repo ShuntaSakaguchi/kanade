@@ -787,6 +787,16 @@ class DataLoader_kanade(DataLoader):
             else:
                raise ValueError('Choose predictor_type from "classifier" or "regressor".')
 
+        elif isinstance(predictor_type, list):
+            if len(predictor_type) != len(supervised_columns):
+                raise ValueError('Length of "predictor_type" must be the same as that of "supervised_columns".')
+            for ptype in predictor_type:
+                if not isinstance(ptype, str) or ptype.upper() not in ['CLASSIFIER','C','REGRESSOR','R']:
+                    raise ValueError('Choose predictor_type from "classifier" or "regressor".')
+
+        else:
+            raise ValueError('"predictor_type" must be a string or a list of strings.')
+
         X = adata.X.toarray() if issparse(adata.X) else np.asarray(adata.X)
         X_tensor = torch.tensor(X, dtype=torch.float32)
 
